@@ -335,7 +335,8 @@ namespace Accord.Imaging
                 int r = 1;
 
                 // for each row
-                for (int y = border + 1; y < top.Height - border; y++)
+                //for (int y = border + 1; y < top.Height - border; y++)
+                System.Threading.Tasks.Parallel.For(border + 1, top.Height - border, (y) =>
                 {
                     // for each pixel
                     for (int x = border + 1; x < top.Width - border; x++)
@@ -375,16 +376,19 @@ namespace Accord.Imaging
                                 System.Math.Abs(offset[1]) < 0.5 &&
                                 System.Math.Abs(offset[2]) < 0.5)
                             {
-                                featureList.Add(new SpeededUpRobustFeaturePoint(
-                                    (x + offset[0]) * tstep,
-                                    (y + offset[1]) * tstep,
-                                    0.133333333 * (mid.Size + offset[2] * mstep),
-                                    mid.Laplacian[y * mscale, x * mscale]));
+                                lock (featureList)
+                                {
+                                    featureList.Add(new SpeededUpRobustFeaturePoint(
+                                        (x + offset[0]) * tstep,
+                                        (y + offset[1]) * tstep,
+                                        0.133333333 * (mid.Size + offset[2] * mstep),
+                                        mid.Laplacian[y * mscale, x * mscale]));
+                                }
                             }
                         }
 
                     }
-                }
+                });
             }
 
             descriptor = null;

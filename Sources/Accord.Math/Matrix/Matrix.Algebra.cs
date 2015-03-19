@@ -26,6 +26,7 @@ namespace Accord.Math
     using System.Collections.Generic;
     using System.Linq;
     using Accord.Math.Decompositions;
+    using System.Threading.Tasks;
 
     /// <summary>
     ///   Static class Matrix. Defines a set of extension methods
@@ -1160,10 +1161,17 @@ namespace Accord.Math
                     "Vector must have the same length as columns in the matrix.");
 
             double[] r = new double[rows];
+#if true
             for (int i = 0; i < rows; i++)
                 for (int j = 0; j < columnVector.Length; j++)
                     r[i] += matrix[i, j] * columnVector[j];
-
+#else
+            Parallel.For(0, rows, (i) =>
+            {
+                for (int j = 0; j < columnVector.Length; j++)
+                    r[i] += matrix[i, j] * columnVector[j];
+            });
+#endif
             return r;
         }
 

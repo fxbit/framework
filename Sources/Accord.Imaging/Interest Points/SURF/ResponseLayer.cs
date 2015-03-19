@@ -29,6 +29,7 @@ namespace Accord.Imaging
     using System.Collections;
     using System.Collections.Generic;
     using AForge.Imaging;
+    using System.Threading.Tasks;
 
     /// <summary>
     ///   Response filter.
@@ -322,10 +323,10 @@ namespace Accord.Imaging
             int b = (Size - 1) / 2 + 1;
             int c = Size / 3;
             int w = Size;
-            float inv = 1f / (w * w);
-            float Dxx, Dyy, Dxy;
+            float inv = 1f / (255f * w * w);
 
-            for (int y = 0; y < Height; y++)
+            //for (int y = 0; y < Height; y++)
+            Parallel.For(0, Height, (y) =>
             {
                 for (int x = 0; x < Width; x++)
                 {
@@ -334,27 +335,27 @@ namespace Accord.Imaging
                     int j = x * Step;
 
                     // Compute response components
-                    Dxx = ((int)image.GetRectangleSum(j - b, i - c + 1, j - b + w - 1, i - c + 2 * c - 1)
-                         - (int)image.GetRectangleSum(j - c / 2, i - c + 1, j - c / 2 + c - 1, i - c + 2 * c - 1) * 3);
+                    float Dxx = ((int)image.GetRectangleSum(j - b, i - c + 1, j - b + w - 1, i - c + 2 * c - 1)
+                               - (int)image.GetRectangleSum(j - c / 2, i - c + 1, j - c / 2 + c - 1, i - c + 2 * c - 1) * 3);
 
-                    Dyy = ((int)image.GetRectangleSum(j - c + 1, i - b, j - c + 2 * c - 1, i - b + w - 1)
-                         - (int)image.GetRectangleSum(j - c + 1, i - c / 2, j - c + 2 * c - 1, i - c / 2 + c - 1) * 3);
+                    float Dyy = ((int)image.GetRectangleSum(j - c + 1, i - b, j - c + 2 * c - 1, i - b + w - 1)
+                               - (int)image.GetRectangleSum(j - c + 1, i - c / 2, j - c + 2 * c - 1, i - c / 2 + c - 1) * 3);
 
-                    Dxy = ((int)image.GetRectangleSum(j + 1, i - c, j + c, i - 1)
+                    float Dxy = ((int)image.GetRectangleSum(j + 1, i - c, j + c, i - 1)
                          + (int)image.GetRectangleSum(j - c, i + 1, j - 1, i + c)
                          - (int)image.GetRectangleSum(j - c, i - c, j - 1, i - 1)
                          - (int)image.GetRectangleSum(j + 1, i + 1, j + c, i + c));
 
                     // Normalize the filter responses with respect to their size
-                    Dxx *= inv / 255f;
-                    Dyy *= inv / 255f;
-                    Dxy *= inv / 255f;
+                    Dxx *= inv;
+                    Dyy *= inv;
+                    Dxy *= inv;
 
                     // Get the determinant of Hessian response & laplacian sign
                     Responses[y, x] = (Dxx * Dyy) - (0.9f * 0.9f * Dxy * Dxy);
                     Laplacian[y, x] = (Dxx + Dyy) >= 0 ? 1 : 0;
                 }
-            }
+            });
         }
 
     }

@@ -28,6 +28,7 @@ namespace Accord.Imaging.Filters
     using System.Drawing.Imaging;
     using AForge.Imaging;
     using Matrix = Accord.Math.Matrix;
+    using System.Threading.Tasks;
 
     /// <summary>
     ///   Linear Gradient Blending filter.
@@ -339,21 +340,14 @@ namespace Accord.Imaging.Filters
                 byte* src = (byte*)sourceData.ImageData.ToPointer();
                 byte* dst = (byte*)destinationData.ImageData.ToPointer();
 
-                // destination pixel's coordinate relative to image center
-                double cx, cy;
-
-                // destination pixel's homogenous coordinate
-                double hx, hy, hw;
-
-                // source pixel's coordinates
-                int ox, oy;
-
-
-
                 // Copy the overlay image
-                for (int y = 0; y < newHeight; y++)
+                Parallel.For(0, newHeight, (y) =>
                 {
-                    for (int x = 0; x < newWidth; x++, dst += 4)
+                    // source pixel's coordinates
+                    int ox, oy;
+                    byte* tmpDst = (byte*)(dst + y * (dstOffset + newWidth * 4));
+
+                    for (int x = 0; x < newWidth; x++, tmpDst += 4)
                     {
                         ox = (int)(x + offset.X);
                         oy = (int)(y + offset.Y);
@@ -362,10 +356,10 @@ namespace Accord.Imaging.Filters
                         if ((ox < 0) || (oy < 0) || (ox >= overlayData.Width) || (oy >= overlayData.Height))
                         {
                             // fill destination image with filler
-                            dst[0] = fillB;
-                            dst[1] = fillG;
-                            dst[2] = fillR;
-                            dst[3] = fillA;
+                            tmpDst[0] = fillB;
+                            tmpDst[1] = fillG;
+                            tmpDst[2] = fillR;
+                            tmpDst[3] = fillA;
                         }
                         else
                         {
@@ -376,40 +370,52 @@ namespace Accord.Imaging.Filters
                             if (orgPixelSize == 3)
                             {
                                 // 24 bpp
-                                dst[0] = org[c + 0];
-                                dst[1] = org[c + 1];
-                                dst[2] = org[c + 2];
-                                dst[3] = (byte)255;
+                                tmpDst[0] = org[c + 0];
+                                tmpDst[1] = org[c + 1];
+                                tmpDst[2] = org[c + 2];
+                                tmpDst[3] = (byte)255;
                             }
                             else if (orgPixelSize == 4)
                             {
                                 // 32 bpp
-                                dst[0] = org[c + 0];
-                                dst[1] = org[c + 1];
-                                dst[2] = org[c + 2];
-                                dst[3] = org[c + 3];
+                                tmpDst[0] = org[c + 0];
+                                tmpDst[1] = org[c + 1];
+                                tmpDst[2] = org[c + 2];
+                                tmpDst[3] = org[c + 3];
                             }
                             else
                             {
                                 // 8 bpp
-                                dst[0] = org[c];
-                                dst[1] = org[c];
-                                dst[2] = org[c];
-                                dst[3] = org[c];
+                                tmpDst[0] = org[c];
+                                tmpDst[1] = org[c];
+                                tmpDst[2] = org[c];
+                                tmpDst[3] = org[c];
                             }
                         }
                     }
-                    dst += dstOffset;
-                }
+                });
 
                 org = (byte*)overlayData.Scan0.ToPointer();
                 src = (byte*)sourceData.ImageData.ToPointer();
                 dst = (byte*)destinationData.ImageData.ToPointer();
 
+
                 // Project and blend the second image
-                for (int y = 0; y < newHeight; y++)
+                //for (int y = 0; y < newHeight; y++)
+                Parallel.For(0, newHeight, (y) =>
                 {
-                    for (int x = 0; x < newWidth; x++, dst += 4)
+                    // source pixel's coordinates
+                    int ox, oy;
+
+                    // destination pixel's coordinate relative to image center
+                    double cx, cy;
+
+                    // destination pixel's homogenous coordinate
+                    double hx, hy, hw;
+
+                    byte* tmpDst = (byte*)(dst + y * (dstOffset + newWidth * 4));
+
+                    for (int x = 0; x < newWidth; x++, tmpDst += 4)
                     {
                         cx = x + offset.X;
                         cy = y + offset.Y;
@@ -433,7 +439,7 @@ namespace Accord.Imaging.Filters
                             {
                                 // source pixel is fully transparent, nothing to copy
                             }
-                            else if (dst[3] > 0)
+                            else if (tmpDst[3] > 0)
                             {
                                 float f1 = 0.5f, f2 = 0.5f;
 
@@ -454,26 +460,26 @@ namespace Accord.Imaging.Filters
                                     if (srcPixelSize == 3)
                                     {
                                         // 24 bpp
-                                        dst[0] = (byte)(src[c + 0] * f2 + dst[0] * f1);
-                                        dst[1] = (byte)(src[c + 1] * f2 + dst[1] * f1);
-                                        dst[2] = (byte)(src[c + 2] * f2 + dst[2] * f1);
-                                        dst[3] = (byte)255;
+                                        tmpDst[0] = (byte)(src[c + 0] * f2 + tmpDst[0] * f1);
+                                        tmpDst[1] = (byte)(src[c + 1] * f2 + tmpDst[1] * f1);
+                                        tmpDst[2] = (byte)(src[c + 2] * f2 + tmpDst[2] * f1);
+                                        tmpDst[3] = (byte)255;
                                     }
                                     else if (srcPixelSize == 4)
                                     {
                                         // 32 bpp
-                                        dst[0] = (byte)(src[c + 0] * f2 + dst[0] * f1);
-                                        dst[1] = (byte)(src[c + 1] * f2 + dst[1] * f1);
-                                        dst[2] = (byte)(src[c + 2] * f2 + dst[2] * f1);
-                                        dst[3] = (byte)(src[c + 3] * f2 + dst[3] * f1);
+                                        tmpDst[0] = (byte)(src[c + 0] * f2 + tmpDst[0] * f1);
+                                        tmpDst[1] = (byte)(src[c + 1] * f2 + tmpDst[1] * f1);
+                                        tmpDst[2] = (byte)(src[c + 2] * f2 + tmpDst[2] * f1);
+                                        tmpDst[3] = (byte)(src[c + 3] * f2 + tmpDst[3] * f1);
                                     }
                                     else
                                     {
                                         // 8 bpp
-                                        dst[0] = (byte)(src[c] * f2 + dst[0] * f1);
-                                        dst[1] = (byte)(src[c] * f2 + dst[1] * f1);
-                                        dst[2] = (byte)(src[c] * f2 + dst[2] * f1);
-                                        dst[3] = (byte)255;
+                                        tmpDst[0] = (byte)(src[c] * f2 + tmpDst[0] * f1);
+                                        tmpDst[1] = (byte)(src[c] * f2 + tmpDst[1] * f1);
+                                        tmpDst[2] = (byte)(src[c] * f2 + tmpDst[2] * f1);
+                                        tmpDst[3] = (byte)255;
                                     }
                                 }
                                 else
@@ -481,23 +487,23 @@ namespace Accord.Imaging.Filters
                                     if (srcPixelSize == 3)
                                     {
                                         // 24 bpp
-                                        dst[0] = (byte)(src[c + 0]);
-                                        dst[1] = (byte)(src[c + 1]);
-                                        dst[2] = (byte)(src[c + 2]);
+                                        tmpDst[0] = (byte)(src[c + 0]);
+                                        tmpDst[1] = (byte)(src[c + 1]);
+                                        tmpDst[2] = (byte)(src[c + 2]);
                                     }
                                     else if (srcPixelSize == 4)
                                     {
                                         // 32 bpp
-                                        dst[0] = (byte)(src[c + 0]);
-                                        dst[1] = (byte)(src[c + 1]);
-                                        dst[2] = (byte)(src[c + 2]);
+                                        tmpDst[0] = (byte)(src[c + 0]);
+                                        tmpDst[1] = (byte)(src[c + 1]);
+                                        tmpDst[2] = (byte)(src[c + 2]);
                                     }
                                     else
                                     {
                                         // 8 bpp
-                                        dst[0] = (byte)(src[c]);
-                                        dst[1] = (byte)(src[c]);
-                                        dst[2] = (byte)(src[c]);
+                                        tmpDst[0] = (byte)(src[c]);
+                                        tmpDst[1] = (byte)(src[c]);
+                                        tmpDst[2] = (byte)(src[c]);
                                     }
                                 }
                             }
@@ -508,33 +514,32 @@ namespace Accord.Imaging.Filters
                                 if (srcPixelSize == 3)
                                 {
                                     // 24bpp
-                                    dst[0] = src[c + 0];
-                                    dst[1] = src[c + 1];
-                                    dst[2] = src[c + 2];
-                                    dst[3] = (byte)255;
+                                    tmpDst[0] = src[c + 0];
+                                    tmpDst[1] = src[c + 1];
+                                    tmpDst[2] = src[c + 2];
+                                    tmpDst[3] = (byte)255;
                                 }
                                 else if (srcPixelSize == 4)
                                 {
                                     // 32bpp
-                                    dst[0] = src[c + 0];
-                                    dst[1] = src[c + 1];
-                                    dst[2] = src[c + 2];
-                                    dst[3] = src[c + 3];
+                                    tmpDst[0] = src[c + 0];
+                                    tmpDst[1] = src[c + 1];
+                                    tmpDst[2] = src[c + 2];
+                                    tmpDst[3] = src[c + 3];
                                 }
                                 else
                                 {
                                     // 8bpp
-                                    dst[0] = src[c];
-                                    dst[1] = src[c];
-                                    dst[2] = src[c];
-                                    dst[3] = 0;
+                                    tmpDst[0] = src[c];
+                                    tmpDst[1] = src[c];
+                                    tmpDst[2] = src[c];
+                                    tmpDst[3] = 0;
                                 }
                             }
                         }
                     }
-                    dst += dstOffset;
 
-                }
+                });
             }
 
             overlayImage.UnlockBits(overlayData);

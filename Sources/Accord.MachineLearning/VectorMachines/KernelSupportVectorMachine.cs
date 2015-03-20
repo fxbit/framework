@@ -28,6 +28,7 @@ namespace Accord.MachineLearning.VectorMachines
     using Accord.Statistics.Kernels;
     using Accord.Statistics.Links;
     using Accord.Statistics.Models.Regression;
+    using System.Threading.Tasks;
 
     /// <summary>
     ///  Sparse Kernel Support Vector Machine (kSVM)
@@ -171,8 +172,34 @@ namespace Accord.MachineLearning.VectorMachines
             }
             else
             {
+#if true
+                double sum = Threshold;
+                object lockObject = new object();
+                Parallel.For(0, SupportVectors.Length,
+                    // The local initial partial result
+                    () => 0.0d,
+
+                    // The loop body
+                    (i, loopState, partialResult) =>
+                    {
+                        return Weights[i] * kernel.Function(SupportVectors[i], inputs) + partialResult;
+                    },
+
+                    // The final step of each local context            
+                    (localPartialSum) =>
+                    {
+                        // Enforce serial access to single, shared result
+                        lock (lockObject)
+                        {
+                            sum += localPartialSum;
+                        }
+                    });
+                output = sum;
+
+#else
                 for (int i = 0; i < SupportVectors.Length; i++)
                     output += Weights[i] * kernel.Function(SupportVectors[i], inputs);
+#endif
             }
 
             if (IsProbabilistic)
